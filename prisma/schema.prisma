@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String
+  name        String
+  role        String       @default("organizer") // "organizer" | "admin"
+  createdAt   DateTime     @default(now())
+  tournaments Tournament[]
+}
+
+model Tournament {
+  id           String   @id @default(uuid())
+  name         String
+  logoUrl      String?
+  eventDate    String
+  createdAt    DateTime @default(now())
+  status       String   @default("draft") // "draft" | "in_progress" | "completed"
+  size         Int
+  currentRound Int      @default(0)
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  matches      Match[]
+  participants Participant[]
+}
+
+model Participant {
+  id           String     @id @default(uuid())
+  name         String
+  score        Float      @default(0)
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+}
+
+model Match {
+  id              String     @id @default(uuid())
+  tournamentId    String
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round           Int
+  tableNumber     Int
+  participantIds  String     // JSON array stored as string
+  results         String     @default("{}") // JSON object stored as string
+  scorecards      String?    // JSON object stored as string
+  isPendingReview Boolean    @default(false)
+  isCompleted     Boolean    @default(false)
+}

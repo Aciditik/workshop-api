@@ -1,0 +1,214 @@
+import { Router, Response } from "express";
+import prisma from "../lib/prisma";
+import { authenticate, AuthRequest } from "../middleware/auth";
+
+const router = Router();
+
+// All tournament routes require authentication
+router.use(authenticate);
+
+// Helper: format tournament from DB to frontend shape
+function formatTournament(t: any) {
+  return {
+    id: t.id,
+    name: t.name,
+    logoUrl: t.logoUrl,
+    eventDate: t.eventDate,
+    createdAt: t.createdAt.toISOString(),
+    status: t.status,
+    size: t.size,
+    currentRound: t.currentRound,
+    ownerId: t.ownerId,
+    participants: t.participants.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+    })),
+    matches: t.matches.map((m: any) => ({
+      id: m.id,
+      tournamentId: m.tournamentId,
+      round: m.round,
+      tableNumber: m.tableNumber,
+      participantIds: JSON.parse(m.participantIds),
+      results: JSON.parse(m.results),
+      scorecards: m.scorecards ? JSON.parse(m.scorecards) : undefined,
+      isPendingReview: m.isPendingReview,
+      isCompleted: m.isCompleted,
+    })),
+  };
+}
+
+// GET /api/tournaments - list tournaments (filtered by role)
+router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const where = req.user!.role === "admin" ? {} : { ownerId: req.user!.id };
+
+    const tournaments = await prisma.tournament.findMany({
+      where,
+      include: { participants: true, matches: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(tournaments.map(formatTournament));
+  } catch (error) {
+    console.error("List tournaments error:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// GET /api/tournaments/:id
+router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: req.params.id },
+      include: { participants: true, matches: true },
+    });
+
+    if (!tournament) {
+      res.status(404).json({ error: "Tournoi non trouvé" });
+      return;
+    }
+
+    // Check ownership (admins can see all)
+    if (req.user!.role !== "admin" && tournament.ownerId !== req.user!.id) {
+      res.status(403).json({ error: "Accès non autorisé" });
+      return;
+    }
+
+    res.json(formatTournament(tournament));
+  } catch (error) {
+    console.error("Get tournament error:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// POST /api/tournaments
+router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id, name, logoUrl, eventDate, size } = req.body;
+
+    const tournament = await prisma.tournament.create({
+      data: {
+        id: id || undefined,
+        name,
+        logoUrl,
+        eventDate,
+        size,
+        ownerId: req.user!.id,
+      },
+      include: { participants: true, matches: true },
+    });
+
+    res.status(201).json(formatTournament(tournament));
+  } catch (error) {
+    console.error("Create tournament error:", error);
+    res.status(500).json({ error: "Erreur lors de la création" });
+  }
+});
+
+// PUT /api/tournaments/:id - full update (participants, matches, status, etc.)
+router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const existing = await prisma.tournament.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: "Tournoi non trouvé" });
+      return;
+    }
+
+    if (req.user!.role !== "admin" && existing.ownerId !== req.user!.id) {
+      res.status(403).json({ error: "Accès non autorisé" });
+      return;
+    }
+
+    const { name, logoUrl, eventDate, status, size, currentRound, participants, matches } = req.body;
+
+    // Update tournament base fields
+    await prisma.tournament.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        logoUrl,
+        eventDate,
+        status,
+        size,
+        currentRound,
+      },
+    });
+
+    // Sync participants: delete all then re-create
+    if (participants) {
+      await prisma.participant.deleteMany({ where: { tournamentId: req.params.id } });
+      if (participants.length > 0) {
+        await prisma.participant.createMany({
+          data: participants.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            score: p.score || 0,
+            tournamentId: req.params.id,
+          })),
+        });
+      }
+    }
+
+    // Sync matches: delete all then re-create
+    if (matches) {
+      await prisma.match.deleteMany({ where: { tournamentId: req.params.id } });
+      if (matches.length > 0) {
+        await prisma.match.createMany({
+          data: matches.map((m: any) => ({
+            id: m.id,
+            tournamentId: req.params.id,
+            round: m.round,
+            tableNumber: m.tableNumber,
+            participantIds: JSON.stringify(m.participantIds),
+            results: JSON.stringify(m.results || {}),
+            scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
+            isPendingReview: m.isPendingReview || false,
+            isCompleted: m.isCompleted || false,
+          })),
+        });
+      }
+    }
+
+    // Return the updated tournament
+    const updated = await prisma.tournament.findUnique({
+      where: { id: req.params.id },
+      include: { participants: true, matches: true },
+    });
+
+    res.json(formatTournament(updated));
+  } catch (error) {
+    console.error("Update tournament error:", error);
+    res.status(500).json({ error: "Erreur lors de la mise à jour" });
+  }
+});
+
+// DELETE /api/tournaments/:id
+router.delete("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const existing = await prisma.tournament.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: "Tournoi non trouvé" });
+      return;
+    }
+
+    if (req.user!.role !== "admin" && existing.ownerId !== req.user!.id) {
+      res.status(403).json({ error: "Accès non autorisé" });
+      return;
+    }
+
+    await prisma.tournament.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete tournament error:", error);
+    res.status(500).json({ error: "Erreur lors de la suppression" });
+  }
+});
+
+export default router;
