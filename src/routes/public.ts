@@ -12,8 +12,12 @@ function formatTournament(t: any) {
     eventDate: t.eventDate,
     createdAt: t.createdAt.toISOString(),
     status: t.status,
+    format: t.format,
     size: t.size,
     currentRound: t.currentRound,
+    maxRounds: t.maxRounds,
+    qualifiedCount: t.qualifiedCount,
+    qualifiedIds: t.qualifiedIds ? JSON.parse(t.qualifiedIds) : undefined,
     participants: t.participants.map((p: any) => ({
       id: p.id,
       name: p.name,
@@ -24,11 +28,13 @@ function formatTournament(t: any) {
       tournamentId: m.tournamentId,
       round: m.round,
       tableNumber: m.tableNumber,
+      tableLabel: m.tableLabel,
       participantIds: JSON.parse(m.participantIds),
       results: JSON.parse(m.results),
       scorecards: m.scorecards ? JSON.parse(m.scorecards) : undefined,
       isPendingReview: m.isPendingReview,
       isCompleted: m.isCompleted,
+      isFinalist: m.isFinalist,
     })),
   };
 }
