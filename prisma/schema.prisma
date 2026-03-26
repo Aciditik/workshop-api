@@ -18,18 +18,22 @@ model User {
 }
 
 model Tournament {
-  id           String   @id @default(uuid())
-  name         String
-  logoUrl      String?
-  eventDate    String
-  createdAt    DateTime @default(now())
-  status       String   @default("draft") // "draft" | "in_progress" | "completed"
-  size         Int
-  currentRound Int      @default(0)
-  ownerId      String
-  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  matches      Match[]
-  participants Participant[]
+  id             String   @id @default(uuid())
+  name           String
+  logoUrl        String?
+  eventDate      String
+  createdAt      DateTime @default(now())
+  status         String   @default("draft") // "draft" | "in_progress" | "completed"
+  format         String   @default("swiss") // "elimination" | "swiss"
+  size           Int
+  currentRound   Int      @default(0)
+  maxRounds      Int      @default(3)
+  qualifiedCount Int      @default(2)
+  qualifiedIds   String?  // JSON array stored as string
+  ownerId        String
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  matches        Match[]
+  participants   Participant[]
 }
 
 model Participant {
@@ -46,9 +50,11 @@ model Match {
   tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   round           Int
   tableNumber     Int
+  tableLabel      String?    // e.g. "Finale 1", "Table A"
   participantIds  String     // JSON array stored as string
   results         String     @default("{}") // JSON object stored as string
   scorecards      String?    // JSON object stored as string
   isPendingReview Boolean    @default(false)
   isCompleted     Boolean    @default(false)
+  isFinalist      Boolean    @default(false)
 }

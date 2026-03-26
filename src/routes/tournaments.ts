@@ -16,8 +16,12 @@ function formatTournament(t: any) {
     eventDate: t.eventDate,
     createdAt: t.createdAt.toISOString(),
     status: t.status,
+    format: t.format,
     size: t.size,
     currentRound: t.currentRound,
+    maxRounds: t.maxRounds,
+    qualifiedCount: t.qualifiedCount,
+    qualifiedIds: t.qualifiedIds ? JSON.parse(t.qualifiedIds) : undefined,
     ownerId: t.ownerId,
     participants: t.participants.map((p: any) => ({
       id: p.id,
@@ -29,11 +33,13 @@ function formatTournament(t: any) {
       tournamentId: m.tournamentId,
       round: m.round,
       tableNumber: m.tableNumber,
+      tableLabel: m.tableLabel,
       participantIds: JSON.parse(m.participantIds),
       results: JSON.parse(m.results),
       scorecards: m.scorecards ? JSON.parse(m.scorecards) : undefined,
       isPendingReview: m.isPendingReview,
       isCompleted: m.isCompleted,
+      isFinalist: m.isFinalist,
     })),
   };
 }
@@ -85,7 +91,7 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/tournaments
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id, name, logoUrl, eventDate, size } = req.body;
+    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches } = req.body;
 
     const tournament = await prisma.tournament.create({
       data: {
@@ -94,12 +100,52 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         logoUrl,
         eventDate,
         size,
+        format: format || "swiss",
+        maxRounds: maxRounds || 3,
+        qualifiedCount: qualifiedCount || 2,
+        status: status || "draft",
+        currentRound: currentRound || 0,
         ownerId: req.user!.id,
       },
+    });
+
+    // Create participants if provided
+    if (participants && participants.length > 0) {
+      await prisma.participant.createMany({
+        data: participants.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          score: p.score || 0,
+          tournamentId: tournament.id,
+        })),
+      });
+    }
+
+    // Create matches if provided
+    if (matches && matches.length > 0) {
+      await prisma.match.createMany({
+        data: matches.map((m: any) => ({
+          id: m.id,
+          tournamentId: tournament.id,
+          round: m.round,
+          tableNumber: m.tableNumber,
+          tableLabel: m.tableLabel || null,
+          participantIds: JSON.stringify(m.participantIds),
+          results: JSON.stringify(m.results || {}),
+          scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
+          isPendingReview: m.isPendingReview || false,
+          isCompleted: m.isCompleted || false,
+          isFinalist: m.isFinalist || false,
+        })),
+      });
+    }
+
+    const created = await prisma.tournament.findUnique({
+      where: { id: tournament.id },
       include: { participants: true, matches: true },
     });
 
-    res.status(201).json(formatTournament(tournament));
+    res.status(201).json(formatTournament(created));
   } catch (error) {
     console.error("Create tournament error:", error);
     res.status(500).json({ error: "Erreur lors de la création" });
@@ -123,7 +169,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, participants, matches } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches } = req.body;
 
     // Update tournament base fields
     await prisma.tournament.update({
@@ -135,6 +181,10 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
         status,
         size,
         currentRound,
+        format,
+        maxRounds,
+        qualifiedCount,
+        qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
       },
     });
 
@@ -163,11 +213,13 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             tournamentId: req.params.id,
             round: m.round,
             tableNumber: m.tableNumber,
+            tableLabel: m.tableLabel || null,
             participantIds: JSON.stringify(m.participantIds),
             results: JSON.stringify(m.results || {}),
             scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
             isPendingReview: m.isPendingReview || false,
             isCompleted: m.isCompleted || false,
+            isFinalist: m.isFinalist || false,
           })),
         });
       }
