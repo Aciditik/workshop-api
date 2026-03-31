@@ -12,6 +12,7 @@ model User {
   email       String       @unique
   password    String
   name        String
+  city        String?
   role        String       @default("organizer") // "organizer" | "admin"
   createdAt   DateTime     @default(now())
   tournaments Tournament[]
