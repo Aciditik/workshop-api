@@ -9,7 +9,8 @@ router.use(authenticate);
 // PUT /api/tournaments/:tournamentId/matches/:matchId - update a single match (scores submission)
 router.put("/:tournamentId/matches/:matchId", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { tournamentId, matchId } = req.params;
+    const tournamentId = req.params.tournamentId as string;
+    const matchId = req.params.matchId as string;
 
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },

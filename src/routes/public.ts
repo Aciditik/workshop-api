@@ -42,8 +42,9 @@ function formatTournament(t: any) {
 // GET /api/public/tournaments/:id - public tournament data (for QR code pages)
 router.get("/tournaments/:id", async (req: Request, res: Response): Promise<void> => {
   try {
+    const id = req.params.id as string;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: { participants: true, matches: true },
     });
 
@@ -62,7 +63,8 @@ router.get("/tournaments/:id", async (req: Request, res: Response): Promise<void
 // POST /api/public/tournaments/:id/table/:tableId - submit scores from QR code (no auth)
 router.post("/tournaments/:id/table/:tableId", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id, tableId } = req.params;
+    const id = req.params.id as string;
+    const tableId = req.params.tableId as string;
     const { results, scorecards } = req.body;
 
     const tournament = await prisma.tournament.findUnique({

@@ -65,8 +65,9 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 // GET /api/tournaments/:id
 router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const id = req.params.id as string;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: { participants: true, matches: true },
     });
 
@@ -158,8 +159,9 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
 // PUT /api/tournaments/:id - full update (participants, matches, status, etc.)
 router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const id = req.params.id as string;
     const existing = await prisma.tournament.findUnique({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     if (!existing) {
@@ -176,7 +178,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Update tournament base fields
     await prisma.tournament.update({
-      where: { id: req.params.id },
+      where: { id },
       data: {
         name,
         logoUrl,
@@ -193,14 +195,14 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Sync participants: delete all then re-create
     if (participants) {
-      await prisma.participant.deleteMany({ where: { tournamentId: req.params.id } });
+      await prisma.participant.deleteMany({ where: { tournamentId: id } });
       if (participants.length > 0) {
         await prisma.participant.createMany({
           data: participants.map((p: any) => ({
             id: p.id,
             name: p.name,
             score: p.score || 0,
-            tournamentId: req.params.id,
+            tournamentId: id,
           })),
         });
       }
@@ -208,12 +210,12 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Sync matches: delete all then re-create
     if (matches) {
-      await prisma.match.deleteMany({ where: { tournamentId: req.params.id } });
+      await prisma.match.deleteMany({ where: { tournamentId: id } });
       if (matches.length > 0) {
         await prisma.match.createMany({
           data: matches.map((m: any) => ({
             id: m.id,
-            tournamentId: req.params.id,
+            tournamentId: id,
             round: m.round,
             tableNumber: m.tableNumber,
             tableLabel: m.tableLabel || null,
@@ -230,7 +232,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Return the updated tournament
     const updated = await prisma.tournament.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: { participants: true, matches: true },
     });
 
@@ -244,8 +246,9 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // DELETE /api/tournaments/:id
 router.delete("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const id = req.params.id as string;
     const existing = await prisma.tournament.findUnique({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     if (!existing) {
@@ -258,7 +261,7 @@ router.delete("/:id", async (req: AuthRequest, res: Response): Promise<void> => 
       return;
     }
 
-    await prisma.tournament.delete({ where: { id: req.params.id } });
+    await prisma.tournament.delete({ where: { id } });
     res.json({ success: true });
   } catch (error) {
     console.error("Delete tournament error:", error);
