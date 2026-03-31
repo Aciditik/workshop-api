@@ -91,7 +91,10 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/tournaments
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches } = req.body;
+    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches, ownerId } = req.body;
+
+    // Admin can assign tournament to another user; organizers always own their own
+    const effectiveOwnerId = (req.user!.role === "admin" && ownerId) ? ownerId : req.user!.id;
 
     const tournament = await prisma.tournament.create({
       data: {
@@ -105,7 +108,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         qualifiedCount: qualifiedCount || 2,
         status: status || "draft",
         currentRound: currentRound || 0,
-        ownerId: req.user!.id,
+        ownerId: effectiveOwnerId,
       },
     });
 
