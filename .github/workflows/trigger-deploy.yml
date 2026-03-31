@@ -1,0 +1,17 @@
+name: Trigger Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger workshop-deploy build
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DEPLOY_PAT }}
+          repository: Aciditik/workshop-deploy
+          event-type: submodule-update
+          client-payload: '{"repo": "workshop-api", "sha": "${{ github.sha }}"}'
