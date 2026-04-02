@@ -41,6 +41,8 @@ model Tournament {
 model Participant {
   id           String     @id @default(uuid())
   name         String
+  email        String
+  phone        String
   score        Float      @default(0)
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
