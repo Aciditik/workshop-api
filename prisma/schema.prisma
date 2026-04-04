@@ -1,6 +1,8 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -9,28 +11,27 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
-  password    String
-  name        String
-  role        String       @default("organizer")
-  createdAt   DateTime     @default(now())
-  city        String?
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("organizer")
+  createdAt DateTime @default(now())
   tournaments Tournament[]
 }
 
 model Tournament {
-  id             String        @id @default(uuid())
+  id             String  @id @default(uuid())
   name           String
   logoUrl        String?
   eventDate      String
-  createdAt      DateTime      @default(now())
-  status         String        @default("draft")
-  format         String        @default("swiss")
+  createdAt      DateTime @default(now())
+  status         String  @default("draft")
+  format         String  @default("swiss")
   size           Int
-  currentRound   Int           @default(0)
-  maxRounds      Int           @default(3)
-  qualifiedCount Int           @default(2)
+  currentRound   Int     @default(0)
+  maxRounds      Int     @default(3)
+  qualifiedCount Int     @default(2)
   qualifiedIds   String?
   ownerId        String
   matches        Match[]
