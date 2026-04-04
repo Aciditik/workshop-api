@@ -11,7 +11,7 @@ router.use(authenticate);
 function formatTournament(t: any) {
   return {
     id: t.id,
-    name: t.name,
+    name: t.name || "Unknown",
     logoUrl: t.logoUrl,
     eventDate: t.eventDate,
     createdAt: t.createdAt.toISOString(),
@@ -21,27 +21,37 @@ function formatTournament(t: any) {
     currentRound: t.currentRound,
     maxRounds: t.maxRounds,
     qualifiedCount: t.qualifiedCount,
-    qualifiedIds: t.qualifiedIds ? JSON.parse(t.qualifiedIds) : undefined,
+    qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     ownerId: t.ownerId,
-    participants: t.participants.map((p: any) => ({
+    participants: (t.participants || []).map((p: any) => ({
       id: p.id,
-      name: p.name,
-      score: p.score,
+      name: p.name || "Unknown",
+      score: p.score || 0,
     })),
-    matches: t.matches.map((m: any) => ({
+    matches: (t.matches || []).map((m: any) => ({
       id: m.id,
       tournamentId: m.tournamentId,
       round: m.round,
       tableNumber: m.tableNumber,
       tableLabel: m.tableLabel,
-      participantIds: JSON.parse(m.participantIds),
-      results: JSON.parse(m.results),
-      scorecards: m.scorecards ? JSON.parse(m.scorecards) : undefined,
+      participantIds: safeJsonParse(m.participantIds) || [],
+      results: safeJsonParse(m.results) || {},
+      scorecards: m.scorecards ? safeJsonParse(m.scorecards) : undefined,
       isPendingReview: m.isPendingReview,
       isCompleted: m.isCompleted,
       isFinalist: m.isFinalist,
     })),
   };
+}
+
+// Helper: safe JSON parsing with fallback
+function safeJsonParse(jsonString: string) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("JSON parse error:", error, "Input:", jsonString);
+    return null;
+  }
 }
 
 // GET /api/tournaments - list tournaments (filtered by role)
@@ -193,41 +203,45 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       },
     });
 
-    // Sync participants: delete all then re-create
+    // Sync participants: use transaction to prevent race conditions
     if (participants) {
-      await prisma.participant.deleteMany({ where: { tournamentId: id } });
-      if (participants.length > 0) {
-        await prisma.participant.createMany({
-          data: participants.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            score: p.score || 0,
-            tournamentId: id,
-          })),
-        });
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.participant.deleteMany({ where: { tournamentId: id } });
+        if (participants.length > 0) {
+          await tx.participant.createMany({
+            data: participants.map((p: any) => ({
+              id: p.id,
+              name: p.name || "Unknown",
+              score: p.score || 0,
+              tournamentId: id,
+            })),
+          });
+        }
+      });
     }
 
-    // Sync matches: delete all then re-create
+    // Sync matches: use transaction to prevent race conditions
     if (matches) {
-      await prisma.match.deleteMany({ where: { tournamentId: id } });
-      if (matches.length > 0) {
-        await prisma.match.createMany({
-          data: matches.map((m: any) => ({
-            id: m.id,
-            tournamentId: id,
-            round: m.round,
-            tableNumber: m.tableNumber,
-            tableLabel: m.tableLabel || null,
-            participantIds: JSON.stringify(m.participantIds),
-            results: JSON.stringify(m.results || {}),
-            scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
-            isPendingReview: m.isPendingReview || false,
-            isCompleted: m.isCompleted || false,
-            isFinalist: m.isFinalist || false,
-          })),
-        });
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.match.deleteMany({ where: { tournamentId: id } });
+        if (matches.length > 0) {
+          await tx.match.createMany({
+            data: matches.map((m: any) => ({
+              id: m.id,
+              tournamentId: id,
+              round: m.round,
+              tableNumber: m.tableNumber,
+              tableLabel: m.tableLabel || null,
+              participantIds: JSON.stringify(m.participantIds || []),
+              results: JSON.stringify(m.results || {}),
+              scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
+              isPendingReview: m.isPendingReview || false,
+              isCompleted: m.isCompleted || false,
+              isFinalist: m.isFinalist || false,
+            })),
+          });
+        }
+      });
     }
 
     // Return the updated tournament
