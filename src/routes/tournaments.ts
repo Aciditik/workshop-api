@@ -156,8 +156,8 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         data: participants.map((p: any) => ({
           id: p.id,
           name: p.name,
-          email: p.email || null,
-          phone: p.phone || null,
+          email: p.email,
+          phone: p.phone,
           score: p.score || 0,
           tournamentId: tournament.id,
         })),
@@ -264,7 +264,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
         await tx.participant.createMany({
           data: participants.map((p: any) => ({
             id: p.id,
-            name: p.name || "Unknown",
+            name: p.name,
             email: p.email || null,
             phone: p.phone || null,
             score: p.score || 0,
