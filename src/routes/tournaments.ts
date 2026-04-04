@@ -195,9 +195,23 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
 router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    console.log("=== TOURNAMENT UPDATE START ===");
+    console.log("Tournament ID:", id);
+    
     const existing = await prisma.tournament.findUnique({
       where: { id },
+      include: { participants: true, matches: true },
     });
+
+    console.log("Existing tournament found:", !!existing);
+    if (existing) {
+      console.log("Current state:", {
+        name: existing.name,
+        currentRound: existing.currentRound,
+        participantCount: existing.participants.length,
+        matchCount: existing.matches.length
+      });
+    }
 
     if (!existing) {
       res.status(404).json({ error: "Tournoi non trouvé" });
@@ -210,6 +224,15 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     }
 
     const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches } = req.body;
+    
+    console.log("Update data received:", {
+      name,
+      currentRound,
+      participantCount: participants?.length || 0,
+      matchCount: matches?.length || 0,
+      hasParticipants: !!participants,
+      hasMatches: !!matches
+    });
 
     // Update tournament base fields
     await prisma.tournament.update({
@@ -231,6 +254,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     // Sync participants: use transaction to prevent race conditions
     // Only update participants if explicitly provided and not empty
     if (participants && participants.length > 0) {
+      console.log("Updating participants - deleting and recreating", participants.length);
       await prisma.$transaction(async (tx) => {
         await tx.participant.deleteMany({ where: { tournamentId: id } });
         await tx.participant.createMany({
@@ -242,11 +266,17 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
           })),
         });
       });
+      console.log("Participants updated successfully");
+    } else if (participants) {
+      console.log("WARNING: Received empty participants array - NOT updating to prevent deletion");
+    } else {
+      console.log("No participants data received - keeping existing participants");
     }
 
     // Sync matches: use transaction to prevent race conditions
     // Only update matches if explicitly provided and not empty
     if (matches && matches.length > 0) {
+      console.log("Updating matches - deleting and recreating", matches.length);
       await prisma.$transaction(async (tx) => {
         await tx.match.deleteMany({ where: { tournamentId: id } });
         await tx.match.createMany({
@@ -265,6 +295,11 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
           })),
         });
       });
+      console.log("Matches updated successfully");
+    } else if (matches) {
+      console.log("WARNING: Received empty matches array - NOT updating to prevent deletion");
+    } else {
+      console.log("No matches data received - keeping existing matches");
     }
 
     // Return the updated tournament
@@ -273,9 +308,18 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       include: { participants: true, matches: true },
     });
 
+    console.log("Final tournament state:", {
+      name: updated?.name,
+      currentRound: updated?.currentRound,
+      participantCount: updated?.participants.length || 0,
+      matchCount: updated?.matches.length || 0
+    });
+    console.log("=== TOURNAMENT UPDATE END ===");
+
     res.json(formatTournament(updated));
   } catch (error) {
     console.error("Update tournament error:", error);
+    console.log("=== TOURNAMENT UPDATE ERROR ===");
     res.status(500).json({ error: "Erreur lors de la mise à jour" });
   }
 });
