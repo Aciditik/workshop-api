@@ -11,7 +11,7 @@ router.use(authenticate);
 function formatTournament(t: any) {
   return {
     id: t.id,
-    name: t.name,
+    name: t.name || "Unknown",
     logoUrl: t.logoUrl,
     eventDate: t.eventDate,
     createdAt: t.createdAt.toISOString(),
@@ -21,27 +21,39 @@ function formatTournament(t: any) {
     currentRound: t.currentRound,
     maxRounds: t.maxRounds,
     qualifiedCount: t.qualifiedCount,
-    qualifiedIds: t.qualifiedIds ? JSON.parse(t.qualifiedIds) : undefined,
+    qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     ownerId: t.ownerId,
-    participants: t.participants.map((p: any) => ({
+    participants: (t.participants || []).map((p: any) => ({
       id: p.id,
-      name: p.name,
-      score: p.score,
+      name: p.name || "Unknown",
+      email: p.email,
+      phone: p.phone,
+      score: p.score || 0,
     })),
-    matches: t.matches.map((m: any) => ({
+    matches: (t.matches || []).map((m: any) => ({
       id: m.id,
       tournamentId: m.tournamentId,
       round: m.round,
       tableNumber: m.tableNumber,
       tableLabel: m.tableLabel,
-      participantIds: JSON.parse(m.participantIds),
-      results: JSON.parse(m.results),
-      scorecards: m.scorecards ? JSON.parse(m.scorecards) : undefined,
+      participantIds: safeJsonParse(m.participantIds) || [],
+      results: safeJsonParse(m.results) || {},
+      scorecards: m.scorecards ? safeJsonParse(m.scorecards) : undefined,
       isPendingReview: m.isPendingReview,
       isCompleted: m.isCompleted,
       isFinalist: m.isFinalist,
     })),
   };
+}
+
+// Helper: safe JSON parsing with fallback
+function safeJsonParse(jsonString: string) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("JSON parse error:", error, "Input:", jsonString);
+    return null;
+  }
 }
 
 // GET /api/tournaments - list tournaments (filtered by role)
@@ -66,18 +78,24 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    console.log("Authenticated tournament request for ID:", id, "User:", req.user?.id);
+    
     const tournament = await prisma.tournament.findUnique({
       where: { id },
       include: { participants: true, matches: true },
     });
 
+    console.log("Tournament found:", !!tournament);
+
     if (!tournament) {
+      console.log("Tournament not found in database for ID:", id);
       res.status(404).json({ error: "Tournoi non trouvé" });
       return;
     }
 
     // Check ownership (admins can see all)
     if (req.user!.role !== "admin" && tournament.ownerId !== req.user!.id) {
+      console.log("Access denied - User:", req.user!.id, "Owner:", tournament.ownerId);
       res.status(403).json({ error: "Accès non autorisé" });
       return;
     }
@@ -93,9 +111,26 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches, ownerId } = req.body;
+    
+    console.log("Creating tournament with data:", { 
+      name, 
+      eventDate, 
+      size, 
+      userId: req.user?.id,
+      userRole: req.user?.role 
+    });
+
+    // Validate required fields
+    if (!name || !eventDate || !size) {
+      console.log("Missing required fields:", { name: !!name, eventDate: !!eventDate, size: !!size });
+      res.status(400).json({ error: "Champs requis: nom, date, taille" });
+      return;
+    }
 
     // Admin can assign tournament to another user; organizers always own their own
     const effectiveOwnerId = (req.user!.role === "admin" && ownerId) ? ownerId : req.user!.id;
+    
+    console.log("Effective owner ID:", effectiveOwnerId);
 
     const tournament = await prisma.tournament.create({
       data: {
@@ -112,6 +147,8 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         ownerId: effectiveOwnerId,
       },
     });
+
+    console.log("Tournament created successfully:", tournament.id);
 
     // Create participants if provided
     if (participants && participants.length > 0) {
@@ -162,9 +199,23 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
 router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    console.log("=== TOURNAMENT UPDATE START ===");
+    console.log("Tournament ID:", id);
+    
     const existing = await prisma.tournament.findUnique({
       where: { id },
+      include: { participants: true, matches: true },
     });
+
+    console.log("Existing tournament found:", !!existing);
+    if (existing) {
+      console.log("Current state:", {
+        name: existing.name,
+        currentRound: existing.currentRound,
+        participantCount: existing.participants.length,
+        matchCount: existing.matches.length
+      });
+    }
 
     if (!existing) {
       res.status(404).json({ error: "Tournoi non trouvé" });
@@ -177,6 +228,15 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     }
 
     const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches } = req.body;
+    
+    console.log("Update data received:", {
+      name,
+      currentRound,
+      participantCount: participants?.length || 0,
+      matchCount: matches?.length || 0,
+      hasParticipants: !!participants,
+      hasMatches: !!matches
+    });
 
     // Update tournament base fields
     await prisma.tournament.update({
@@ -195,11 +255,13 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       },
     });
 
-    // Sync participants: delete all then re-create
-    if (participants) {
-      await prisma.participant.deleteMany({ where: { tournamentId: id } });
-      if (participants.length > 0) {
-        await prisma.participant.createMany({
+    // Sync participants: use transaction to prevent race conditions
+    // Only update participants if explicitly provided and not empty
+    if (participants && participants.length > 0) {
+      console.log("Updating participants - deleting and recreating", participants.length);
+      await prisma.$transaction(async (tx) => {
+        await tx.participant.deleteMany({ where: { tournamentId: id } });
+        await tx.participant.createMany({
           data: participants.map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -209,21 +271,28 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             tournamentId: id,
           })),
         });
-      }
+      });
+      console.log("Participants updated successfully");
+    } else if (participants) {
+      console.log("WARNING: Received empty participants array - NOT updating to prevent deletion");
+    } else {
+      console.log("No participants data received - keeping existing participants");
     }
 
-    // Sync matches: delete all then re-create
-    if (matches) {
-      await prisma.match.deleteMany({ where: { tournamentId: id } });
-      if (matches.length > 0) {
-        await prisma.match.createMany({
+    // Sync matches: use transaction to prevent race conditions
+    // Only update matches if explicitly provided and not empty
+    if (matches && matches.length > 0) {
+      console.log("Updating matches - deleting and recreating", matches.length);
+      await prisma.$transaction(async (tx) => {
+        await tx.match.deleteMany({ where: { tournamentId: id } });
+        await tx.match.createMany({
           data: matches.map((m: any) => ({
             id: m.id,
             tournamentId: id,
             round: m.round,
             tableNumber: m.tableNumber,
             tableLabel: m.tableLabel || null,
-            participantIds: JSON.stringify(m.participantIds),
+            participantIds: JSON.stringify(m.participantIds || []),
             results: JSON.stringify(m.results || {}),
             scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
             isPendingReview: m.isPendingReview || false,
@@ -231,7 +300,12 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             isFinalist: m.isFinalist || false,
           })),
         });
-      }
+      });
+      console.log("Matches updated successfully");
+    } else if (matches) {
+      console.log("WARNING: Received empty matches array - NOT updating to prevent deletion");
+    } else {
+      console.log("No matches data received - keeping existing matches");
     }
 
     // Return the updated tournament
@@ -240,9 +314,18 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       include: { participants: true, matches: true },
     });
 
+    console.log("Final tournament state:", {
+      name: updated?.name,
+      currentRound: updated?.currentRound,
+      participantCount: updated?.participants.length || 0,
+      matchCount: updated?.matches.length || 0
+    });
+    console.log("=== TOURNAMENT UPDATE END ===");
+
     res.json(formatTournament(updated));
   } catch (error) {
     console.error("Update tournament error:", error);
+    console.log("=== TOURNAMENT UPDATE ERROR ===");
     res.status(500).json({ error: "Erreur lors de la mise à jour" });
   }
 });

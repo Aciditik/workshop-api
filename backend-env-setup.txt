@@ -1,0 +1,6 @@
+# Database Configuration for Render
+DATABASE_URL=file:./dev.db
+
+# Enable connection pooling for better performance
+# For production, consider using PostgreSQL instead of SQLite
+# POSTGRES_URL=postgresql://user:password@host:port/database
