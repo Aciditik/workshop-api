@@ -26,6 +26,8 @@ function formatTournament(t: any) {
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       name: p.name || "Unknown",
+      email: p.email,
+      phone: p.phone,
       score: p.score || 0,
     })),
     matches: (t.matches || []).map((m: any) => ({
@@ -154,6 +156,8 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         data: participants.map((p: any) => ({
           id: p.id,
           name: p.name,
+          email: p.email || null,
+          phone: p.phone || null,
           score: p.score || 0,
           tournamentId: tournament.id,
         })),
@@ -261,6 +265,8 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
           data: participants.map((p: any) => ({
             id: p.id,
             name: p.name || "Unknown",
+            email: p.email || null,
+            phone: p.phone || null,
             score: p.score || 0,
             tournamentId: id,
           })),

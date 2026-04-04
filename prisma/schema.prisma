@@ -13,34 +13,36 @@ model User {
   email       String       @unique
   password    String
   name        String
-  city        String?
-  role        String       @default("organizer") // "organizer" | "admin"
+  role        String       @default("organizer")
   createdAt   DateTime     @default(now())
+  city        String?
   tournaments Tournament[]
 }
 
 model Tournament {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   name           String
   logoUrl        String?
   eventDate      String
-  createdAt      DateTime @default(now())
-  status         String   @default("draft") // "draft" | "in_progress" | "completed"
-  format         String   @default("swiss") // "elimination" | "swiss"
+  createdAt      DateTime      @default(now())
+  status         String        @default("draft")
+  format         String        @default("swiss")
   size           Int
-  currentRound   Int      @default(0)
-  maxRounds      Int      @default(3)
-  qualifiedCount Int      @default(2)
-  qualifiedIds   String?  // JSON array stored as string
+  currentRound   Int           @default(0)
+  maxRounds      Int           @default(3)
+  qualifiedCount Int           @default(2)
+  qualifiedIds   String?
   ownerId        String
-  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   matches        Match[]
   participants   Participant[]
+  owner          User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 }
 
 model Participant {
   id           String     @id @default(uuid())
   name         String
+  email        String?
+  phone        String?
   score        Float      @default(0)
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -49,14 +51,14 @@ model Participant {
 model Match {
   id              String     @id @default(uuid())
   tournamentId    String
-  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   round           Int
   tableNumber     Int
-  tableLabel      String?    // e.g. "Finale 1", "Table A"
-  participantIds  String     // JSON array stored as string
-  results         String     @default("{}") // JSON object stored as string
-  scorecards      String?    // JSON object stored as string
+  tableLabel      String?
+  participantIds  String
+  results         String     @default("{}")
+  scorecards      String?
   isPendingReview Boolean    @default(false)
   isCompleted     Boolean    @default(false)
   isFinalist      Boolean    @default(false)
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
