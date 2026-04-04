@@ -204,43 +204,41 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     });
 
     // Sync participants: use transaction to prevent race conditions
-    if (participants) {
+    // Only update participants if explicitly provided and not empty
+    if (participants && participants.length > 0) {
       await prisma.$transaction(async (tx) => {
         await tx.participant.deleteMany({ where: { tournamentId: id } });
-        if (participants.length > 0) {
-          await tx.participant.createMany({
-            data: participants.map((p: any) => ({
-              id: p.id,
-              name: p.name || "Unknown",
-              score: p.score || 0,
-              tournamentId: id,
-            })),
-          });
-        }
+        await tx.participant.createMany({
+          data: participants.map((p: any) => ({
+            id: p.id,
+            name: p.name || "Unknown",
+            score: p.score || 0,
+            tournamentId: id,
+          })),
+        });
       });
     }
 
     // Sync matches: use transaction to prevent race conditions
-    if (matches) {
+    // Only update matches if explicitly provided and not empty
+    if (matches && matches.length > 0) {
       await prisma.$transaction(async (tx) => {
         await tx.match.deleteMany({ where: { tournamentId: id } });
-        if (matches.length > 0) {
-          await tx.match.createMany({
-            data: matches.map((m: any) => ({
-              id: m.id,
-              tournamentId: id,
-              round: m.round,
-              tableNumber: m.tableNumber,
-              tableLabel: m.tableLabel || null,
-              participantIds: JSON.stringify(m.participantIds || []),
-              results: JSON.stringify(m.results || {}),
-              scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
-              isPendingReview: m.isPendingReview || false,
-              isCompleted: m.isCompleted || false,
-              isFinalist: m.isFinalist || false,
-            })),
-          });
-        }
+        await tx.match.createMany({
+          data: matches.map((m: any) => ({
+            id: m.id,
+            tournamentId: id,
+            round: m.round,
+            tableNumber: m.tableNumber,
+            tableLabel: m.tableLabel || null,
+            participantIds: JSON.stringify(m.participantIds || []),
+            results: JSON.stringify(m.results || {}),
+            scorecards: m.scorecards ? JSON.stringify(m.scorecards) : null,
+            isPendingReview: m.isPendingReview || false,
+            isCompleted: m.isCompleted || false,
+            isFinalist: m.isFinalist || false,
+          })),
+        });
       });
     }
 
