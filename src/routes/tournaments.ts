@@ -76,18 +76,24 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    console.log("Authenticated tournament request for ID:", id, "User:", req.user?.id);
+    
     const tournament = await prisma.tournament.findUnique({
       where: { id },
       include: { participants: true, matches: true },
     });
 
+    console.log("Tournament found:", !!tournament);
+
     if (!tournament) {
+      console.log("Tournament not found in database for ID:", id);
       res.status(404).json({ error: "Tournoi non trouvé" });
       return;
     }
 
     // Check ownership (admins can see all)
     if (req.user!.role !== "admin" && tournament.ownerId !== req.user!.id) {
+      console.log("Access denied - User:", req.user!.id, "Owner:", tournament.ownerId);
       res.status(403).json({ error: "Accès non autorisé" });
       return;
     }
@@ -103,9 +109,26 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches, ownerId } = req.body;
+    
+    console.log("Creating tournament with data:", { 
+      name, 
+      eventDate, 
+      size, 
+      userId: req.user?.id,
+      userRole: req.user?.role 
+    });
+
+    // Validate required fields
+    if (!name || !eventDate || !size) {
+      console.log("Missing required fields:", { name: !!name, eventDate: !!eventDate, size: !!size });
+      res.status(400).json({ error: "Champs requis: nom, date, taille" });
+      return;
+    }
 
     // Admin can assign tournament to another user; organizers always own their own
     const effectiveOwnerId = (req.user!.role === "admin" && ownerId) ? ownerId : req.user!.id;
+    
+    console.log("Effective owner ID:", effectiveOwnerId);
 
     const tournament = await prisma.tournament.create({
       data: {
@@ -122,6 +145,8 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         ownerId: effectiveOwnerId,
       },
     });
+
+    console.log("Tournament created successfully:", tournament.id);
 
     // Create participants if provided
     if (participants && participants.length > 0) {

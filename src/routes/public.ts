@@ -53,12 +53,17 @@ function safeJsonParse(jsonString: string) {
 router.get("/tournaments/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    console.log("Public tournament request for ID:", id);
+    
     const tournament = await prisma.tournament.findUnique({
       where: { id },
       include: { participants: true, matches: true },
     });
 
+    console.log("Tournament found:", !!tournament);
+
     if (!tournament) {
+      console.log("Tournament not found in database for ID:", id);
       res.status(404).json({ error: "Tournoi non trouvé" });
       return;
     }
