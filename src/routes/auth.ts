@@ -9,7 +9,7 @@ const router = Router();
 // POST /api/auth/register
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, name, city } = req.body;
+    const { email, password, name } = req.body;
 
     if (!email || !password || !name) {
       res.status(400).json({ error: "Email, mot de passe et nom requis" });
@@ -29,7 +29,6 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
         email,
         password: hashedPassword,
         name,
-        city: city || null,
         role: "organizer",
       },
     });
@@ -42,7 +41,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, city: user.city, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (error) {
     console.error("Register error:", error);
@@ -80,7 +79,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, city: user.city, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -93,7 +92,7 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response): Promise
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, email: true, name: true, city: true, role: true },
+      select: { id: true, email: true, name: true, role: true },
     });
 
     if (!user) {
@@ -118,7 +117,7 @@ router.get("/users", authenticate, async (req: AuthRequest, res: Response): Prom
 
     const users = await prisma.user.findMany({
       where: { role: "organizer" },
-      select: { id: true, email: true, name: true, city: true, role: true },
+      select: { id: true, email: true, name: true, role: true },
       orderBy: { name: "asc" },
     });
 
