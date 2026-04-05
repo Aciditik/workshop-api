@@ -21,8 +21,6 @@ function formatTournament(t: any) {
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       name: p.name || "Unknown",
-      email: p.email,
-      phone: p.phone,
       score: p.score || 0,
     })),
     matches: (t.matches || []).map((m: any) => ({
