@@ -4,10 +4,6 @@
   - You are about to drop the column `city` on the `User` table. All the data in the column will be lost.
 
 */
--- AlterTable
-ALTER TABLE "Participant" ADD COLUMN "email" TEXT;
-ALTER TABLE "Participant" ADD COLUMN "phone" TEXT;
-
 -- RedefineTables
 PRAGMA defer_foreign_keys=ON;
 PRAGMA foreign_keys=OFF;
