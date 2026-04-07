@@ -26,6 +26,8 @@ function formatTournament(t: any) {
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       name: p.name || "Unknown",
+      email: p.email || "",
+      phone: p.phone || "",
       score: p.score || 0,
     })),
     matches: (t.matches || []).map((m: any) => ({
@@ -119,7 +121,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
     });
 
     // Validate required fields
-    if (!name || !eventDate || !size) {
+    if (!name || !eventDate || size == null) {
       console.log("Missing required fields:", { name: !!name, eventDate: !!eventDate, size: !!size });
       res.status(400).json({ error: "Champs requis: nom, date, taille" });
       return;
@@ -154,6 +156,8 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         data: participants.map((p: any) => ({
           id: p.id,
           name: p.name,
+          email: p.email || null,
+          phone: p.phone || null,
           score: p.score || 0,
           tournamentId: tournament.id,
         })),
@@ -183,6 +187,11 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
       where: { id: tournament.id },
       include: { participants: true, matches: true },
     });
+
+    if (!created) {
+      res.status(500).json({ error: "Tournoi créé mais introuvable" });
+      return;
+    }
 
     res.status(201).json(formatTournament(created));
   } catch (error) {
@@ -237,6 +246,8 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
           data: participants.map((p: any) => ({
             id: p.id,
             name: p.name || "Unknown",
+            email: p.email || null,
+            phone: p.phone || null,
             score: p.score || 0,
             tournamentId: id,
           })),
@@ -293,8 +304,8 @@ router.delete("/:id", async (req: AuthRequest, res: Response): Promise<void> => 
       return;
     }
 
-    if (req.user!.role !== "admin" && existing.ownerId !== req.user!.id) {
-      res.status(403).json({ error: "Accès non autorisé" });
+    if (req.user!.role !== "admin") {
+      res.status(403).json({ error: "Accès non autorisé - seul un administrateur peut supprimer un tournoi" });
       return;
     }
 
