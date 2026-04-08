@@ -20,7 +20,10 @@ function formatTournament(t: any) {
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
+      firstname: p.firstname || "",
       name: p.name || "Unknown",
+      email: p.email || "",
+      phone: p.phone || "",
       score: p.score || 0,
     })),
     matches: (t.matches || []).map((m: any) => ({

@@ -25,6 +25,7 @@ function formatTournament(t: any) {
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
+      firstname: p.firstname || "",
       name: p.name || "Unknown",
       email: p.email || "",
       phone: p.phone || "",
@@ -155,9 +156,10 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
       await prisma.participant.createMany({
         data: participants.map((p: any) => ({
           id: p.id,
+          firstname: p.firstname || "",
           name: p.name,
-          email: p.email || null,
-          phone: p.phone || null,
+          email: p.email || "",
+          phone: p.phone || "",
           score: p.score || 0,
           tournamentId: tournament.id,
         })),
@@ -245,9 +247,10 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
         await tx.participant.createMany({
           data: participants.map((p: any) => ({
             id: p.id,
+            firstname: p.firstname || "",
             name: p.name || "Unknown",
-            email: p.email || null,
-            phone: p.phone || null,
+            email: p.email || "",
+            phone: p.phone || "",
             score: p.score || 0,
             tournamentId: id,
           })),
