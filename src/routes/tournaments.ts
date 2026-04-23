@@ -57,6 +57,65 @@ function safeJsonParse(jsonString: string) {
   }
 }
 
+// POST /api/tournaments/finale/add-players
+// Any authenticated user can append participants to the "CdF Finale 2026"
+// brouillon tournament. Organizers cannot see the Finale via the normal list
+// endpoint (ownership-filtered), so this route lets them contribute qualified
+// players to the shared Finale the admin has pre-created. Dedup is by email.
+router.post("/finale/add-players", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { participants } = req.body as { participants?: any[] };
+    if (!Array.isArray(participants) || participants.length === 0) {
+      res.status(400).json({ error: "Liste de joueurs requise" });
+      return;
+    }
+
+    const finale = await prisma.tournament.findFirst({
+      where: { name: "CdF Finale 2026", status: "brouillon" },
+      include: { participants: true },
+    });
+
+    if (!finale) {
+      res.status(404).json({ error: "Le tournoi Finale n'existe pas encore. Contactez un administrateur." });
+      return;
+    }
+
+    const existingEmails = new Set(
+      finale.participants.map(p => (p.email || "").trim().toLowerCase()).filter(Boolean)
+    );
+
+    const toCreate = participants.filter(p => {
+      const e = (p.email || "").trim().toLowerCase();
+      return e ? !existingEmails.has(e) : true;
+    });
+
+    if (toCreate.length > 0) {
+      await prisma.participant.createMany({
+        data: toCreate.map((p: any) => ({
+          id: p.id,
+          firstname: p.firstname || "",
+          name: p.name || "Unknown",
+          email: p.email || "",
+          phone: p.phone || "",
+          score: 0,
+          tournamentId: finale.id,
+        })),
+      });
+
+      const newSize = finale.participants.length + toCreate.length;
+      await prisma.tournament.update({
+        where: { id: finale.id },
+        data: { size: newSize },
+      });
+    }
+
+    res.json({ added: toCreate.length, finaleId: finale.id });
+  } catch (error) {
+    console.error("Finale add-players error:", error);
+    res.status(500).json({ error: "Erreur lors de l'ajout à la Finale" });
+  }
+});
+
 // GET /api/tournaments - list tournaments (filtered by role)
 router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
