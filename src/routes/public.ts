@@ -52,6 +52,106 @@ function safeJsonParse(jsonString: string) {
   }
 }
 
+// GET /api/public/stats - raw scorecard entries + metadata for client-side filtering
+router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const matches = await prisma.match.findMany({
+      where: { isCompleted: true, scorecards: { not: null } },
+    });
+
+    const tournaments = await prisma.tournament.findMany({
+      include: { participants: true },
+    });
+
+    const participantMap = new Map<string, { firstname: string; name: string; tournamentId: string; tournamentName: string }>();
+    const qualifiedSet = new Set<string>();
+
+    for (const t of tournaments) {
+      for (const p of t.participants) {
+        participantMap.set(p.id, {
+          firstname: p.firstname || "",
+          name: p.name || "",
+          tournamentId: t.id,
+          tournamentName: t.name,
+        });
+      }
+      if (t.qualifiedIds) {
+        const ids = safeJsonParse(t.qualifiedIds) as string[] | null;
+        if (ids) ids.forEach((id: string) => qualifiedSet.add(id));
+      }
+    }
+
+    const entries: Array<{
+      participantId: string;
+      firstname: string;
+      name: string;
+      tournamentId: string;
+      tournamentName: string;
+      corporation: string;
+      nt: number;
+      objectifs: number;
+      recompenses: number;
+      forets: number;
+      villes: number;
+      cartes: number;
+      megacredits: number;
+      totalScore: number;
+      isQualified: boolean;
+    }> = [];
+
+    for (const match of matches) {
+      if (!match.scorecards) continue;
+      const scorecards = safeJsonParse(match.scorecards) as Record<string, any> | null;
+      if (!scorecards) continue;
+
+      for (const [participantId, sc] of Object.entries(scorecards)) {
+        if (!sc || typeof sc !== "object") continue;
+        if (!sc.corporation || sc.corporation === "Choisissez votre corporation") continue;
+
+        const nt = sc.nt || 0;
+        const objectifs = sc.objectifs || 0;
+        const recompenses = sc.recompenses || 0;
+        const forets = sc.forets || 0;
+        const villes = sc.villes || 0;
+        const cartes = sc.cartes || 0;
+        const megacredits = sc.megacredits || 0;
+
+        const participant = participantMap.get(participantId);
+        entries.push({
+          participantId,
+          firstname: participant?.firstname || "",
+          name: participant?.name || "",
+          tournamentId: participant?.tournamentId || match.tournamentId,
+          tournamentName: participant?.tournamentName || "",
+          corporation: sc.corporation,
+          nt,
+          objectifs,
+          recompenses,
+          forets,
+          villes,
+          cartes,
+          megacredits,
+          totalScore: nt + objectifs + recompenses + forets + villes + cartes,
+          isQualified: qualifiedSet.has(participantId),
+        });
+      }
+    }
+
+    const tournamentList = tournaments.map((t) => ({ id: t.id, name: t.name }));
+    const corporations = [...new Set(entries.map((e) => e.corporation))].sort();
+
+    res.json({
+      entries,
+      tournaments: tournamentList,
+      corporations,
+      totalMatches: matches.length,
+    });
+  } catch (error) {
+    console.error("Stats error:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // GET /api/public/tournaments/:id - public tournament data (for QR code pages)
 router.get("/tournaments/:id", async (req: Request, res: Response): Promise<void> => {
   try {
