@@ -279,23 +279,29 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches, ownerId } = req.body;
+
+    // Build update payload. Only admins can change ownerId.
+    const updateData: any = {
+      name,
+      logoUrl,
+      eventDate,
+      status,
+      size,
+      currentRound,
+      format,
+      maxRounds,
+      qualifiedCount,
+      qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
+    };
+    if (req.user!.role === "admin" && ownerId !== undefined) {
+      updateData.ownerId = ownerId;
+    }
 
     // Update tournament base fields
     await prisma.tournament.update({
       where: { id },
-      data: {
-        name,
-        logoUrl,
-        eventDate,
-        status,
-        size,
-        currentRound,
-        format,
-        maxRounds,
-        qualifiedCount,
-        qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
-      },
+      data: updateData,
     });
 
     // Sync participants: use transaction to prevent race conditions
