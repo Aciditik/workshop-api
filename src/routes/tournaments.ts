@@ -30,6 +30,7 @@ function formatTournament(t: any) {
       email: p.email || "",
       phone: p.phone || "",
       score: p.score || 0,
+      dnf: p.dnf || false,
     })),
     matches: (t.matches || []).map((m: any) => ({
       id: m.id,
@@ -220,6 +221,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
           email: p.email || "",
           phone: p.phone || "",
           score: p.score || 0,
+          dnf: p.dnf || false,
           tournamentId: tournament.id,
         })),
       });
@@ -317,6 +319,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             email: p.email || "",
             phone: p.phone || "",
             score: p.score || 0,
+            dnf: p.dnf || false,
             tournamentId: id,
           })),
         });

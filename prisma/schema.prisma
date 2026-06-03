@@ -44,6 +44,7 @@ model Participant {
   email        String
   phone        String
   score        Float      @default(0)
+  dnf          Boolean    @default(false)
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
