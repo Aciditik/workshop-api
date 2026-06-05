@@ -375,8 +375,8 @@ router.delete("/:id", async (req: AuthRequest, res: Response): Promise<void> => 
       return;
     }
 
-    if (req.user!.role !== "admin") {
-      res.status(403).json({ error: "Accès non autorisé - seul un administrateur peut supprimer un tournoi" });
+    if (req.user!.role !== "admin" && existing.ownerId !== req.user!.id) {
+      res.status(403).json({ error: "Accès non autorisé" });
       return;
     }
 
