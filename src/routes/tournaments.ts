@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { Prisma } from "@prisma/client";
 
 const router = Router();
 
@@ -82,7 +83,7 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
     }
 
     const existingEmails = new Set(
-      finale.participants.map(p => (p.email || "").trim().toLowerCase()).filter(Boolean)
+        finale.participants.map((p: (typeof finale.participants)[number]) => (p.email || "").trim().toLowerCase())
     );
 
     const toCreate = participants.filter(p => {
@@ -309,7 +310,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     // Sync participants: use transaction to prevent race conditions
     // Only update participants if explicitly provided and not empty
     if (participants && participants.length > 0) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.participant.deleteMany({ where: { tournamentId: id } });
         await tx.participant.createMany({
           data: participants.map((p: any) => ({
@@ -329,7 +330,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     // Sync matches: use transaction to prevent race conditions
     // Only update matches if explicitly provided and not empty
     if (matches && matches.length > 0) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.match.deleteMany({ where: { tournamentId: id } });
         await tx.match.createMany({
           data: matches.map((m: any) => ({

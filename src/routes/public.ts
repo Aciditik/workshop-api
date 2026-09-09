@@ -137,7 +137,7 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const tournamentList = tournaments.map((t) => ({ id: t.id, name: t.name }));
+    const tournamentList = tournaments.map((t: (typeof tournaments)[number]) => ({ id: t.id, name: t.name }));
     const corporations = [...new Set(entries.map((e) => e.corporation))].sort();
 
     res.json({
