@@ -38,15 +38,16 @@ model Tournament {
 }
 
 model Participant {
-  id           String     @id @default(uuid())
-  firstname    String
-  name         String
-  email        String
-  phone        String
-  score        Float      @default(0)
-  dnf          Boolean    @default(false)
-  tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  id                 String     @id @default(uuid())
+  firstname          String
+  name               String
+  email              String
+  phone              String
+  score              Float      @default(0)
+  dnf                Boolean    @default(false)
+  sourceTournamentId String?
+  tournamentId       String
+  tournament         Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
 
 model Match {

@@ -32,6 +32,7 @@ function formatTournament(t: any) {
       phone: p.phone || "",
       score: p.score || 0,
       dnf: p.dnf || false,
+      sourceTournamentId: p.sourceTournamentId || undefined,
     })),
     matches: (t.matches || []).map((m: any) => ({
       id: m.id,
@@ -100,6 +101,7 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
           email: p.email || "",
           phone: p.phone || "",
           score: 0,
+          sourceTournamentId: p.sourceTournamentId || null,
           tournamentId: finale.id,
         })),
       });
@@ -223,6 +225,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
           phone: p.phone || "",
           score: p.score || 0,
           dnf: p.dnf || false,
+          sourceTournamentId: p.sourceTournamentId || null,
           tournamentId: tournament.id,
         })),
       });
@@ -321,6 +324,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             phone: p.phone || "",
             score: p.score || 0,
             dnf: p.dnf || false,
+            sourceTournamentId: p.sourceTournamentId || null,
             tournamentId: id,
           })),
         });
