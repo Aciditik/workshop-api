@@ -52,15 +52,53 @@ function safeJsonParse(jsonString: string) {
   }
 }
 
-// GET /api/public/stats - raw scorecard entries + metadata for client-side filtering
-router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
+// GET /api/public/stats - scorecard entries + metadata.
+// Query filters (all optional): tournament, corporation, qualified=1,
+// from/to (eventDate YYYY-MM-DD), organizer (ownerId), player (name search),
+// meta=1 (dropdown metadata only, no entries).
+router.get("/stats", async (req: Request, res: Response): Promise<void> => {
   try {
-    const matches = await prisma.match.findMany({
-      where: { isCompleted: true, scorecards: { not: null } },
-    });
+    const q = req.query as Record<string, string | undefined>;
+    const { tournament, corporation, qualified, from, to, organizer, player, meta } = q;
 
     const tournaments = await prisma.tournament.findMany({
-      include: { participants: true },
+      include: { participants: true, owner: { select: { id: true, name: true } } },
+    });
+
+    const tournamentList = tournaments.map((t: (typeof tournaments)[number]) => ({
+      id: t.id,
+      name: t.name,
+      eventDate: t.eventDate,
+      ownerId: t.ownerId,
+      ownerName: t.owner?.name || "",
+    }));
+    const organizers = Array.from(
+      new Map(tournaments.map((t: (typeof tournaments)[number]) => [t.ownerId, t.owner?.name || ""])).entries()
+    ).map(([id, name]) => ({ id, name }));
+
+    // Lightweight mode: just the filter dropdown metadata.
+    if (meta === "1") {
+      res.json({ entries: [], tournaments: tournamentList, corporations: [], organizers, totalMatches: 0 });
+      return;
+    }
+
+    // Push what we can into SQL via the tournament relation.
+    const tournamentWhere: Record<string, any> = {};
+    if (tournament) tournamentWhere.id = tournament;
+    if (organizer) tournamentWhere.ownerId = organizer;
+    if (from || to) {
+      tournamentWhere.eventDate = {};
+      if (from) tournamentWhere.eventDate.gte = from;
+      if (to) tournamentWhere.eventDate.lte = to;
+    }
+
+    const matches = await prisma.match.findMany({
+      where: {
+        isCompleted: true,
+        scorecards: { not: null },
+        ...(Object.keys(tournamentWhere).length ? { tournament: tournamentWhere } : {}),
+      },
+      include: { tournament: { select: { eventDate: true } } },
     });
 
     const participantMap = new Map<string, { firstname: string; name: string; tournamentId: string; tournamentName: string }>();
@@ -87,6 +125,9 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
       name: string;
       tournamentId: string;
       tournamentName: string;
+      eventDate: string;
+      matchId: string;
+      rank: number;
       corporation: string;
       nt: number;
       objectifs: number;
@@ -104,18 +145,17 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
       const scorecards = safeJsonParse(match.scorecards) as Record<string, any> | null;
       if (!scorecards) continue;
 
-      for (const [participantId, sc] of Object.entries(scorecards)) {
-        if (!sc || typeof sc !== "object") continue;
-        if (!sc.corporation || sc.corporation === "Choisissez votre corporation") continue;
+      // Rank players at the table by total score (tiebreak: megacredits),
+      // same rule as the mobile scorecard page.
+      const tableEntries = Object.entries(scorecards)
+        .filter(([, sc]) => sc && typeof sc === "object" && sc.corporation && sc.corporation !== "Choisissez votre corporation")
+        .map(([participantId, sc]) => {
+          const total = (sc.nt || 0) + (sc.objectifs || 0) + (sc.recompenses || 0) + (sc.forets || 0) + (sc.villes || 0) + (sc.cartes || 0);
+          return { participantId, sc, total, mc: sc.megacredits || 0 };
+        })
+        .sort((a, b) => (b.total !== a.total ? b.total - a.total : b.mc - a.mc));
 
-        const nt = sc.nt || 0;
-        const objectifs = sc.objectifs || 0;
-        const recompenses = sc.recompenses || 0;
-        const forets = sc.forets || 0;
-        const villes = sc.villes || 0;
-        const cartes = sc.cartes || 0;
-        const megacredits = sc.megacredits || 0;
-
+      tableEntries.forEach(({ participantId, sc, total }, idx) => {
         const participant = participantMap.get(participantId);
         entries.push({
           participantId,
@@ -123,27 +163,39 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
           name: participant?.name || "",
           tournamentId: participant?.tournamentId || match.tournamentId,
           tournamentName: participant?.tournamentName || "",
+          eventDate: match.tournament?.eventDate || "",
+          matchId: match.id,
+          rank: idx + 1,
           corporation: sc.corporation,
-          nt,
-          objectifs,
-          recompenses,
-          forets,
-          villes,
-          cartes,
-          megacredits,
-          totalScore: nt + objectifs + recompenses + forets + villes + cartes,
+          nt: sc.nt || 0,
+          objectifs: sc.objectifs || 0,
+          recompenses: sc.recompenses || 0,
+          forets: sc.forets || 0,
+          villes: sc.villes || 0,
+          cartes: sc.cartes || 0,
+          megacredits: sc.megacredits || 0,
+          totalScore: total,
           isQualified: qualifiedSet.has(participantId),
         });
-      }
+      });
     }
 
-    const tournamentList = tournaments.map((t: (typeof tournaments)[number]) => ({ id: t.id, name: t.name }));
+    // Post-parse filters (JSON scorecards can't be filtered in SQL).
+    let filtered = entries;
+    if (corporation) filtered = filtered.filter((e) => e.corporation === corporation);
+    if (qualified === "1" || qualified === "true") filtered = filtered.filter((e) => e.isQualified);
+    if (player) {
+      const needle = player.toLowerCase();
+      filtered = filtered.filter((e) => `${e.firstname} ${e.name}`.toLowerCase().includes(needle));
+    }
+
     const corporations = [...new Set(entries.map((e) => e.corporation))].sort();
 
     res.json({
-      entries,
+      entries: filtered,
       tournaments: tournamentList,
       corporations,
+      organizers,
       totalMatches: matches.length,
     });
   } catch (error) {
