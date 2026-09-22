@@ -6,9 +6,14 @@ import { authenticate, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
-// POST /api/auth/register
-router.post("/register", async (req: Request, res: Response): Promise<void> => {
+// POST /api/auth/register - create an organizer account (admin only)
+router.post("/register", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user!.role !== "admin") {
+      res.status(403).json({ error: "Accès réservé aux administrateurs" });
+      return;
+    }
+
     const { email, password, name } = req.body;
 
     if (!email || !password || !name) {

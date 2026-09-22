@@ -69,6 +69,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       id: t.id,
       name: t.name,
       eventDate: t.eventDate,
+      status: t.status,
       ownerId: t.ownerId,
       ownerName: t.owner?.name || "",
     }));
