@@ -52,6 +52,15 @@ function safeJsonParse(jsonString: string) {
   }
 }
 
+// Corporations that were renamed after scorecards were submitted: map the old
+// stored name to the current canonical name so stats stay consistent.
+const CORPORATION_ALIASES: Record<string, string> = {
+  "Tharsis Republic": "République de Tharsis",
+  "Arcadian Communities": "Communautés Arcadiennes",
+  "Interplanetary Cinematics": "Cinématiques Interplanétaires",
+};
+const canonicalCorporation = (name: string) => CORPORATION_ALIASES[name] ?? name;
+
 // GET /api/public/stats - scorecard entries + metadata.
 // Query filters (all optional): tournament, corporation, qualified=1,
 // from/to (eventDate YYYY-MM-DD), organizer (ownerId), player (name search),
@@ -167,7 +176,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
           eventDate: match.tournament?.eventDate || "",
           matchId: match.id,
           rank: idx + 1,
-          corporation: sc.corporation,
+          corporation: canonicalCorporation(sc.corporation),
           nt: sc.nt || 0,
           objectifs: sc.objectifs || 0,
           recompenses: sc.recompenses || 0,
@@ -183,7 +192,10 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
 
     // Post-parse filters (JSON scorecards can't be filtered in SQL).
     let filtered = entries;
-    if (corporation) filtered = filtered.filter((e) => e.corporation === corporation);
+    if (corporation) {
+      const corpFilter = canonicalCorporation(corporation);
+      filtered = filtered.filter((e) => e.corporation === corpFilter);
+    }
     if (qualified === "1" || qualified === "true") filtered = filtered.filter((e) => e.isQualified);
     if (player) {
       const needle = player.toLowerCase();
