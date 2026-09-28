@@ -69,7 +69,7 @@ const canonicalCorporation = (name: string) => CORPORATION_ALIASES[name] ?? name
 router.get("/stats", async (req: Request, res: Response): Promise<void> => {
   try {
     const q = req.query as Record<string, string | undefined>;
-    const { tournament, corporation, qualified, from, to, organizer, player, meta } = q;
+    const { tournament, corporation, qualified, from, to, organizer, player, board, meta } = q;
 
     const tournaments = await prisma.tournament.findMany({
       include: { participants: true, owner: { select: { id: true, name: true } } },
@@ -87,9 +87,21 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       new Map(tournaments.map((t: (typeof tournaments)[number]) => [t.ownerId, t.owner?.name || ""])).entries()
     ).map(([id, name]) => ({ id, name }));
 
+    // Board picked per round, indexed by tournamentId then round number.
+    const roundBoardsByTournament = new Map<string, Record<string, string>>();
+    const boardsSet = new Set<string>();
+    for (const t of tournaments) {
+      if (!t.roundBoards) continue;
+      const rb = safeJsonParse(t.roundBoards) as Record<string, string> | null;
+      if (!rb || typeof rb !== "object") continue;
+      roundBoardsByTournament.set(t.id, rb);
+      Object.values(rb).forEach((b) => { if (b) boardsSet.add(b); });
+    }
+    const boards = [...boardsSet].sort();
+
     // Lightweight mode: just the filter dropdown metadata.
     if (meta === "1") {
-      res.json({ entries: [], tournaments: tournamentList, corporations: [], organizers, totalMatches: 0 });
+      res.json({ entries: [], tournaments: tournamentList, corporations: [], organizers, boards, totalMatches: 0 });
       return;
     }
 
@@ -149,12 +161,15 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       megacredits: number;
       totalScore: number;
       isQualified: boolean;
+      board: string;
     }> = [];
 
     for (const match of matches) {
       if (!match.scorecards) continue;
       const scorecards = safeJsonParse(match.scorecards) as Record<string, any> | null;
       if (!scorecards) continue;
+
+      const matchBoard = roundBoardsByTournament.get(match.tournamentId)?.[String(match.round)] || "";
 
       // Rank players at the table by total score (tiebreak: megacredits),
       // same rule as the mobile scorecard page.
@@ -187,6 +202,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
           megacredits: sc.megacredits || 0,
           totalScore: total,
           isQualified: qualifiedSet.has(participantId),
+          board: matchBoard,
         });
       });
     }
@@ -198,6 +214,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       filtered = filtered.filter((e) => e.corporation === corpFilter);
     }
     if (qualified === "1" || qualified === "true") filtered = filtered.filter((e) => e.isQualified);
+    if (board) filtered = filtered.filter((e) => e.board === board);
     if (player) {
       const needle = player.toLowerCase();
       filtered = filtered.filter((e) => `${e.firstname} ${e.name}`.toLowerCase().includes(needle));
@@ -210,6 +227,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       tournaments: tournamentList,
       corporations,
       organizers,
+      boards,
       totalMatches: matches.length,
     });
   } catch (error) {
