@@ -23,6 +23,7 @@ function formatTournament(t: any) {
     maxRounds: t.maxRounds,
     qualifiedCount: t.qualifiedCount,
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
+    roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
@@ -174,7 +175,7 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/tournaments
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, participants, matches, ownerId } = req.body;
+    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, roundBoards, participants, matches, ownerId } = req.body;
     
     console.log("Creating tournament with data:", { 
       name, 
@@ -208,6 +209,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         qualifiedCount: qualifiedCount || 2,
         status: status || "draft",
         currentRound: currentRound || 0,
+        roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
         ownerId: effectiveOwnerId,
       },
     });
@@ -285,7 +287,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, participants, matches, ownerId } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, participants, matches, ownerId } = req.body;
 
     // Build update payload. Only admins can change ownerId.
     const updateData: any = {
@@ -299,6 +301,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       maxRounds,
       qualifiedCount,
       qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
+      roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
     };
     if (req.user!.role === "admin" && ownerId !== undefined) {
       updateData.ownerId = ownerId;

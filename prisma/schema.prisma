@@ -31,6 +31,7 @@ model Tournament {
   maxRounds      Int           @default(3)
   qualifiedCount Int           @default(2)
   qualifiedIds   String?
+  roundBoards    String?
   ownerId        String
   matches        Match[]
   participants   Participant[]

@@ -18,6 +18,7 @@ function formatTournament(t: any) {
     maxRounds: t.maxRounds,
     qualifiedCount: t.qualifiedCount,
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
+    roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       firstname: p.firstname || "",
