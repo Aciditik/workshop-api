@@ -42,6 +42,7 @@ model Participant {
   id                 String     @id @default(uuid())
   firstname          String
   name               String
+  pseudo             String?
   email              String
   phone              String
   score              Float      @default(0)

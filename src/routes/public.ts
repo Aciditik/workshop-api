@@ -23,6 +23,7 @@ function formatTournament(t: any) {
       id: p.id,
       firstname: p.firstname || "",
       name: p.name || "Unknown",
+      pseudo: p.pseudo || undefined,
       email: p.email || "",
       phone: p.phone || "",
       score: p.score || 0,
