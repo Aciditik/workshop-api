@@ -292,6 +292,17 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, participants, matches, ownerId } = req.body;
 
+    // Format/maxRounds are locked once a tournament leaves "brouillon": round
+    // generation (elimination/swiss/bracket) is fixed to whatever format was
+    // chosen at launch, and getFormat(size)-style recalculation elsewhere
+    // (e.g. after a DNF) has historically reset "bracket" to "swiss" since
+    // that helper doesn't know about bracket. Enforce this server-side as a
+    // safety net regardless of what any client sends.
+    const formatLocked = existing.status !== "brouillon";
+    if (formatLocked && (format !== undefined && format !== existing.format)) {
+      console.warn(`Ignored attempt to change format of non-draft tournament ${id}: ${existing.format} -> ${format}`);
+    }
+
     // Build update payload. Only admins can change ownerId.
     const updateData: any = {
       name,
@@ -300,8 +311,8 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       status,
       size,
       currentRound,
-      format,
-      maxRounds,
+      format: formatLocked ? existing.format : format,
+      maxRounds: formatLocked ? existing.maxRounds : maxRounds,
       qualifiedCount,
       qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
       roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
