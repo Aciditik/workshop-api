@@ -292,15 +292,21 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 
     const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, participants, matches, ownerId } = req.body;
 
-    // Format/maxRounds are locked once a tournament leaves "brouillon": round
-    // generation (elimination/swiss/bracket) is fixed to whatever format was
-    // chosen at launch, and getFormat(size)-style recalculation elsewhere
-    // (e.g. after a DNF) has historically reset "bracket" to "swiss" since
-    // that helper doesn't know about bracket. Enforce this server-side as a
-    // safety net regardless of what any client sends.
-    const formatLocked = existing.status !== "brouillon";
-    if (formatLocked && (format !== undefined && format !== existing.format)) {
+    // Format/maxRounds/qualifiedCount are locked once a tournament leaves
+    // "brouillon": round generation (elimination/swiss/bracket) is fixed to
+    // whatever format was chosen at launch, and the number of qualifying
+    // spots is determined by the tournament's starting size, not whatever is
+    // left after DNFs. Recalculating any of these from the shrinking active
+    // player count (e.g. after a DNF) has historically corrupted them —
+    // 32 players/4 qualified silently became 31/3, and bracket silently
+    // became swiss. Enforce this server-side as a safety net regardless of
+    // what any client sends.
+    const draftLocked = existing.status !== "brouillon";
+    if (draftLocked && format !== undefined && format !== existing.format) {
       console.warn(`Ignored attempt to change format of non-draft tournament ${id}: ${existing.format} -> ${format}`);
+    }
+    if (draftLocked && qualifiedCount !== undefined && qualifiedCount !== existing.qualifiedCount) {
+      console.warn(`Ignored attempt to change qualifiedCount of non-draft tournament ${id}: ${existing.qualifiedCount} -> ${qualifiedCount}`);
     }
 
     // Build update payload. Only admins can change ownerId.
@@ -311,9 +317,9 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       status,
       size,
       currentRound,
-      format: formatLocked ? existing.format : format,
-      maxRounds: formatLocked ? existing.maxRounds : maxRounds,
-      qualifiedCount,
+      format: draftLocked ? existing.format : format,
+      maxRounds: draftLocked ? existing.maxRounds : maxRounds,
+      qualifiedCount: draftLocked ? existing.qualifiedCount : qualifiedCount,
       qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
       roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
     };
