@@ -81,6 +81,8 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       name: t.name,
       eventDate: t.eventDate,
       status: t.status,
+      logoUrl: t.logoUrl,
+      size: t.size,
       ownerId: t.ownerId,
       ownerName: t.owner?.name || "",
     }));
