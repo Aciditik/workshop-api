@@ -27,6 +27,10 @@ function formatTournament(t: any) {
       email: p.email || "",
       phone: p.phone || "",
       score: p.score || 0,
+      dnf: p.dnf || false,
+      // Finale only: which qualifier tournament this player came from —
+      // lets the spectator view show the origin logo like the admin view.
+      sourceTournamentId: p.sourceTournamentId || undefined,
     })),
     matches: (t.matches || []).map((m: any) => ({
       id: m.id,
@@ -81,8 +85,6 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       name: t.name,
       eventDate: t.eventDate,
       status: t.status,
-      logoUrl: t.logoUrl,
-      size: t.size,
       ownerId: t.ownerId,
       ownerName: t.owner?.name || "",
     }));
