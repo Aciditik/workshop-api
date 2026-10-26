@@ -19,6 +19,7 @@ function formatTournament(t: any) {
     qualifiedCount: t.qualifiedCount,
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
+    teams: t.teams ? safeJsonParse(t.teams) : undefined,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       firstname: p.firstname || "",
@@ -28,9 +29,8 @@ function formatTournament(t: any) {
       phone: p.phone || "",
       score: p.score || 0,
       dnf: p.dnf || false,
-      // Finale only: which qualifier tournament this player came from —
-      // lets the spectator view show the origin logo like the admin view.
       sourceTournamentId: p.sourceTournamentId || undefined,
+      teamId: p.teamId || undefined,
     })),
     matches: (t.matches || []).map((m: any) => ({
       id: m.id,
