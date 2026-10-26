@@ -24,6 +24,7 @@ function formatTournament(t: any) {
     qualifiedCount: t.qualifiedCount,
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
+    teams: t.teams ? safeJsonParse(t.teams) : undefined,
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
@@ -35,6 +36,7 @@ function formatTournament(t: any) {
       score: p.score || 0,
       dnf: p.dnf || false,
       sourceTournamentId: p.sourceTournamentId || undefined,
+      teamId: p.teamId || undefined,
     })),
     matches: (t.matches || []).map((m: any) => ({
       id: m.id,
@@ -177,7 +179,7 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/tournaments
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, roundBoards, participants, matches, ownerId } = req.body;
+    const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, roundBoards, teams, participants, matches, ownerId } = req.body;
     
     console.log("Creating tournament with data:", { 
       name, 
@@ -212,6 +214,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         status: status || "draft",
         currentRound: currentRound || 0,
         roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
+        teams: teams ? JSON.stringify(teams) : null,
         ownerId: effectiveOwnerId,
       },
     });
@@ -231,6 +234,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
           score: p.score || 0,
           dnf: p.dnf || false,
           sourceTournamentId: p.sourceTournamentId || null,
+          teamId: p.teamId || null,
           tournamentId: tournament.id,
         })),
       });
@@ -290,7 +294,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, participants, matches, ownerId } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, teams, participants, matches, ownerId } = req.body;
 
     // Format/maxRounds/qualifiedCount are locked once a tournament leaves
     // "brouillon": round generation (elimination/swiss/bracket) is fixed to
@@ -322,6 +326,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       qualifiedCount: draftLocked ? existing.qualifiedCount : qualifiedCount,
       qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
       roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
+      teams: teams ? JSON.stringify(teams) : null,
     };
     if (req.user!.role === "admin" && ownerId !== undefined) {
       updateData.ownerId = ownerId;
@@ -349,6 +354,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             score: p.score || 0,
             dnf: p.dnf || false,
             sourceTournamentId: p.sourceTournamentId || null,
+            teamId: p.teamId || null,
             tournamentId: id,
           })),
         });

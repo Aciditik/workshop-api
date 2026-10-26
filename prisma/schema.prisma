@@ -32,6 +32,7 @@ model Tournament {
   qualifiedCount Int           @default(2)
   qualifiedIds   String?
   roundBoards    String?
+  teams          String? // JSON-encoded [{ id, name, tag }] — Finale-only team rosters
   ownerId        String
   matches        Match[]
   participants   Participant[]
@@ -48,6 +49,7 @@ model Participant {
   score              Float      @default(0)
   dnf                Boolean    @default(false)
   sourceTournamentId String?
+  teamId             String? // Finale-only: references a team in Tournament.teams
   tournamentId       String
   tournament         Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
