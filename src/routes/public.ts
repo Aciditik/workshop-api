@@ -20,6 +20,8 @@ function formatTournament(t: any) {
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
     teams: t.teams ? safeJsonParse(t.teams) : undefined,
+    day2StartRound: t.day2StartRound ?? undefined,
+    day2ParticipantIds: t.day2ParticipantIds ? safeJsonParse(t.day2ParticipantIds) : undefined,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       firstname: p.firstname || "",

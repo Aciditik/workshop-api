@@ -33,6 +33,8 @@ model Tournament {
   qualifiedIds   String?
   roundBoards    String?
   teams          String? // JSON-encoded [{ id, name, tag }] — Finale-only team rosters
+  day2StartRound      Int?    // Two-day Finale: first absolute round number belonging to Day 2
+  day2ParticipantIds  String? // JSON-encoded string[] — the top 32 Day 1 finishers carried to Day 2
   ownerId        String
   matches        Match[]
   participants   Participant[]

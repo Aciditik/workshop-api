@@ -25,6 +25,8 @@ function formatTournament(t: any) {
     qualifiedIds: t.qualifiedIds ? safeJsonParse(t.qualifiedIds) : undefined,
     roundBoards: t.roundBoards ? safeJsonParse(t.roundBoards) : undefined,
     teams: t.teams ? safeJsonParse(t.teams) : undefined,
+    day2StartRound: t.day2StartRound ?? undefined,
+    day2ParticipantIds: t.day2ParticipantIds ? safeJsonParse(t.day2ParticipantIds) : undefined,
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
@@ -294,7 +296,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, teams, participants, matches, ownerId } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, teams, day2StartRound, day2ParticipantIds, participants, matches, ownerId } = req.body;
 
     // Format/maxRounds/qualifiedCount are locked once a tournament leaves
     // "brouillon": round generation (elimination/swiss/bracket) is fixed to
@@ -305,7 +307,11 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     // 32 players/4 qualified silently became 31/3, and bracket silently
     // became swiss. Enforce this server-side as a safety net regardless of
     // what any client sends.
+    // Exception: the two-day CdF Finale legitimately bumps maxRounds (3 -> 6)
+    // when the organizer clicks "Passer au Jour 2" — allow it only in that
+    // specific, controlled transition (day2StartRound newly being set).
     const draftLocked = existing.status !== "brouillon";
+    const settingDay2 = day2StartRound !== undefined && day2StartRound !== existing.day2StartRound;
     if (draftLocked && format !== undefined && format !== existing.format) {
       console.warn(`Ignored attempt to change format of non-draft tournament ${id}: ${existing.format} -> ${format}`);
     }
@@ -322,11 +328,13 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       size,
       currentRound,
       format: draftLocked ? existing.format : format,
-      maxRounds: draftLocked ? existing.maxRounds : maxRounds,
+      maxRounds: draftLocked && !settingDay2 ? existing.maxRounds : maxRounds,
       qualifiedCount: draftLocked ? existing.qualifiedCount : qualifiedCount,
       qualifiedIds: qualifiedIds ? JSON.stringify(qualifiedIds) : null,
       roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
       teams: teams ? JSON.stringify(teams) : null,
+      day2StartRound: day2StartRound ?? existing.day2StartRound,
+      day2ParticipantIds: day2ParticipantIds ? JSON.stringify(day2ParticipantIds) : (existing.day2ParticipantIds ?? null),
     };
     if (req.user!.role === "admin" && ownerId !== undefined) {
       updateData.ownerId = ownerId;
