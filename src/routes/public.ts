@@ -22,6 +22,8 @@ function formatTournament(t: any) {
     teams: t.teams ? safeJsonParse(t.teams) : undefined,
     day2StartRound: t.day2StartRound ?? undefined,
     day2ParticipantIds: t.day2ParticipantIds ? safeJsonParse(t.day2ParticipantIds) : undefined,
+    day1ResultsPublished: t.day1ResultsPublished ?? false,
+    day2ResultsPublished: t.day2ResultsPublished ?? false,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
       firstname: p.firstname || "",

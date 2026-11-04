@@ -27,6 +27,8 @@ function formatTournament(t: any) {
     teams: t.teams ? safeJsonParse(t.teams) : undefined,
     day2StartRound: t.day2StartRound ?? undefined,
     day2ParticipantIds: t.day2ParticipantIds ? safeJsonParse(t.day2ParticipantIds) : undefined,
+    day1ResultsPublished: t.day1ResultsPublished ?? false,
+    day2ResultsPublished: t.day2ResultsPublished ?? false,
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
@@ -296,7 +298,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, teams, day2StartRound, day2ParticipantIds, participants, matches, ownerId } = req.body;
+    const { name, logoUrl, eventDate, status, size, currentRound, format, maxRounds, qualifiedCount, qualifiedIds, roundBoards, teams, day2StartRound, day2ParticipantIds, day1ResultsPublished, day2ResultsPublished, participants, matches, ownerId } = req.body;
 
     // Format/maxRounds/qualifiedCount are locked once a tournament leaves
     // "brouillon": round generation (elimination/swiss/bracket) is fixed to
@@ -335,6 +337,8 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       teams: teams ? JSON.stringify(teams) : null,
       day2StartRound: day2StartRound ?? existing.day2StartRound,
       day2ParticipantIds: day2ParticipantIds ? JSON.stringify(day2ParticipantIds) : (existing.day2ParticipantIds ?? null),
+      day1ResultsPublished: day1ResultsPublished ?? existing.day1ResultsPublished,
+      day2ResultsPublished: day2ResultsPublished ?? existing.day2ResultsPublished,
     };
     if (req.user!.role === "admin" && ownerId !== undefined) {
       updateData.ownerId = ownerId;
