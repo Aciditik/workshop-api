@@ -75,6 +75,10 @@ function safeJsonParse(jsonString: string) {
 // players to the shared Finale the admin has pre-created. Dedup is by email.
 router.post("/finale/add-players", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user!.role === "streamer") {
+      res.status(403).json({ error: "Accès en lecture seule" });
+      return;
+    }
     const { participants } = req.body as { participants?: any[] };
     if (!Array.isArray(participants) || participants.length === 0) {
       res.status(400).json({ error: "Liste de joueurs requise" });
@@ -183,6 +187,10 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/tournaments
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user!.role === "streamer") {
+      res.status(403).json({ error: "Accès en lecture seule" });
+      return;
+    }
     const { id, name, logoUrl, eventDate, size, format, maxRounds, qualifiedCount, status, currentRound, roundBoards, teams, participants, matches, ownerId } = req.body;
     
     console.log("Creating tournament with data:", { 

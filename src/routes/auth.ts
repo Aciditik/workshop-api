@@ -14,12 +14,16 @@ router.post("/register", authenticate, async (req: AuthRequest, res: Response): 
       return;
     }
 
-    const { email, password, name } = req.body;
+    const { email, password, name, role } = req.body;
 
     if (!email || !password || !name) {
       res.status(400).json({ error: "Email, mot de passe et nom requis" });
       return;
     }
+
+    // Only known non-admin roles can be granted — anything else (including
+    // "admin") falls back to the default organizer role.
+    const accountRole = role === "streamer" ? "streamer" : "organizer";
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -34,7 +38,7 @@ router.post("/register", authenticate, async (req: AuthRequest, res: Response): 
         email,
         password: hashedPassword,
         name,
-        role: "organizer",
+        role: accountRole,
       },
     });
 
@@ -121,7 +125,7 @@ router.get("/users", authenticate, async (req: AuthRequest, res: Response): Prom
     }
 
     const users = await prisma.user.findMany({
-      where: { role: "organizer" },
+      where: { role: { in: ["organizer", "streamer"] } },
       select: { id: true, email: true, name: true, role: true },
       orderBy: { name: "asc" },
     });
