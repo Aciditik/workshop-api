@@ -91,6 +91,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       status: t.status,
       ownerId: t.ownerId,
       ownerName: t.owner?.name || "",
+      logoUrl: t.logoUrl || "",
     }));
     const organizers = Array.from(
       new Map(tournaments.map((t: (typeof tournaments)[number]) => [t.ownerId, t.owner?.name || ""])).entries()
