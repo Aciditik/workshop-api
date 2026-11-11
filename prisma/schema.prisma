@@ -52,6 +52,7 @@ model Participant {
   phone              String
   score              Float      @default(0)
   dnf                Boolean    @default(false)
+  isDefendingChampion Boolean   @default(false) // Finale-only: last year's champion, seated at Table 1 for Day 1 Round 1
   sourceTournamentId String?
   teamId             String? // Finale-only: references a team in Tournament.teams
   tournamentId       String
