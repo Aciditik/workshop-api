@@ -2,7 +2,6 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { Prisma } from "@prisma/client";
-import { randomUUID } from "crypto";
 
 const router = Router();
 
@@ -30,9 +29,6 @@ function formatTournament(t: any) {
     day2ParticipantIds: t.day2ParticipantIds ? safeJsonParse(t.day2ParticipantIds) : undefined,
     day1ResultsPublished: t.day1ResultsPublished ?? false,
     day2ResultsPublished: t.day2ResultsPublished ?? false,
-    // QR-code secret — exposed to the authenticated owner/admin so the QR
-    // modal can embed it; never returned by the public endpoints.
-    scoreAccessToken: t.scoreAccessToken ?? undefined,
     ownerId: t.ownerId,
     participants: (t.participants || []).map((p: any) => ({
       id: p.id,
@@ -232,7 +228,6 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         currentRound: currentRound || 0,
         roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
         teams: teams ? JSON.stringify(teams) : null,
-        scoreAccessToken: randomUUID(),
         ownerId: effectiveOwnerId,
       },
     });

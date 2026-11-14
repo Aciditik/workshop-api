@@ -277,7 +277,7 @@ router.post("/tournaments/:id/table/:tableId", async (req: Request, res: Respons
   try {
     const id = req.params.id as string;
     const tableId = req.params.tableId as string;
-    const { results, scorecards, key } = req.body;
+    const { results, scorecards } = req.body;
 
     const tournament = await prisma.tournament.findUnique({
       where: { id },
@@ -285,15 +285,6 @@ router.post("/tournaments/:id/table/:tableId", async (req: Request, res: Respons
 
     if (!tournament) {
       res.status(404).json({ error: "Tournoi non trouvé" });
-      return;
-    }
-
-    // Score entry is reserved to people who scanned the tournament's QR
-    // code: the QR URL carries ?key=<scoreAccessToken> which must echo back
-    // here. Anyone reaching the page another way (public link, edited URL)
-    // can look but can't submit.
-    if (tournament.scoreAccessToken && key !== tournament.scoreAccessToken) {
-      res.status(403).json({ error: "Saisie verrouillée — scannez le QR code du tournoi pour entrer les scores." });
       return;
     }
 

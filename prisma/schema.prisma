@@ -37,7 +37,6 @@ model Tournament {
   day2ParticipantIds  String? // JSON-encoded string[] — the top 32 Day 1 finishers carried to Day 2
   day1ResultsPublished Boolean @default(false) // Finale: admin reveal gate for Day 1's final (round 3) classement
   day2ResultsPublished Boolean @default(false) // Finale: admin reveal gate for Day 2's final (round 3) classement
-  scoreAccessToken  String? // Secret embedded in the printed QR URL — required to submit table scores via the public endpoint
   ownerId        String
   matches        Match[]
   participants   Participant[]
