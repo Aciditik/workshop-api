@@ -70,7 +70,7 @@ function safeJsonParse(jsonString: string) {
 }
 
 // POST /api/tournaments/finale/add-players
-// Any authenticated user can append participants to the "CdF Finale 2026"
+// Any authenticated user can append participants to the "CdF Finale <year>"
 // brouillon tournament. Organizers cannot see the Finale via the normal list
 // endpoint (ownership-filtered), so this route lets them contribute qualified
 // players to the shared Finale the admin has pre-created. Dedup is by email.
@@ -80,14 +80,20 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
       res.status(403).json({ error: "Accès en lecture seule" });
       return;
     }
-    const { participants } = req.body as { participants?: any[] };
+    const { participants, year } = req.body as { participants?: any[]; year?: number };
     if (!Array.isArray(participants) || participants.length === 0) {
       res.status(400).json({ error: "Liste de joueurs requise" });
       return;
     }
 
+    // The season year comes from the qualifier's name; accept only a sane
+    // 4-digit year, otherwise keep the historical default.
+    const finaleName = /^(?:19|20)\d{2}$/.test(String(year ?? ""))
+      ? `CdF Finale ${year}`
+      : "CdF Finale 2026";
+
     const finale = await prisma.tournament.findFirst({
-      where: { name: "CdF Finale 2026", status: "brouillon" },
+      where: { name: finaleName, status: "brouillon" },
       include: { participants: true },
     });
 
