@@ -160,6 +160,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       tournamentName: string;
       eventDate: string;
       matchId: string;
+      round: number;
       rank: number;
       corporation: string;
       nt: number;
@@ -201,6 +202,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
           tournamentName: participant?.tournamentName || "",
           eventDate: match.tournament?.eventDate || "",
           matchId: match.id,
+          round: match.round,
           rank: idx + 1,
           corporation: canonicalCorporation(sc.corporation),
           nt: sc.nt || 0,
