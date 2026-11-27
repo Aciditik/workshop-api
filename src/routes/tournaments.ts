@@ -129,7 +129,7 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
           score: 0,
           sourceTournamentId: p.sourceTournamentId || null,
           tournamentId: finale.id,
-          playerId: playerIds.get(playerKeyOf(p)) ?? null,
+          playerId: p.playerId || playerIds.get(playerKeyOf(p)) || null,
         })),
       });
 
@@ -269,7 +269,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
           sourceTournamentId: p.sourceTournamentId || null,
           teamId: p.teamId || null,
           tournamentId: tournament.id,
-          playerId: playerIds.get(playerKeyOf(p)) ?? null,
+          playerId: p.playerId || playerIds.get(playerKeyOf(p)) || null,
         })),
       });
     }
@@ -400,7 +400,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             sourceTournamentId: p.sourceTournamentId || null,
             teamId: p.teamId || null,
             tournamentId: id,
-            playerId: playerIds.get(playerKeyOf(p)) ?? null,
+            playerId: p.playerId || playerIds.get(playerKeyOf(p)) || null,
           })),
         });
       });

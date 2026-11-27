@@ -71,11 +71,14 @@ model Player {
   id           String        @id @default(uuid())
   firstname    String
   name         String
+  nameKey      String?       // Normalized identity key (accents/case/spaces stripped) — indexed lookup, see lib/players.ts
   pseudo       String?
   email        String?
   phone        String?
   createdAt    DateTime      @default(now())
   participants Participant[]
+
+  @@index([nameKey])
 }
 
 model Match {
