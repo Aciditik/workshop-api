@@ -136,7 +136,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       include: { tournament: { select: { eventDate: true } } },
     });
 
-    const participantMap = new Map<string, { firstname: string; name: string; tournamentId: string; tournamentName: string }>();
+    const participantMap = new Map<string, { firstname: string; name: string; tournamentId: string; tournamentName: string; playerId: string | null }>();
     const qualifiedSet = new Set<string>();
 
     for (const t of tournaments) {
@@ -146,6 +146,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
           name: p.name || "",
           tournamentId: t.id,
           tournamentName: t.name,
+          playerId: p.playerId ?? null,
         });
       }
       if (t.qualifiedIds) {
@@ -156,6 +157,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
 
     const entries: Array<{
       participantId: string;
+      playerId: string | null;
       firstname: string;
       name: string;
       tournamentId: string;
@@ -198,6 +200,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
         const participant = participantMap.get(participantId);
         entries.push({
           participantId,
+          playerId: participant?.playerId ?? null,
           firstname: participant?.firstname || "",
           name: participant?.name || "",
           tournamentId: participant?.tournamentId || match.tournamentId,
