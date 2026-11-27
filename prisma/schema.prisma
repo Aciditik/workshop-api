@@ -58,6 +58,24 @@ model Participant {
   teamId             String? // Finale-only: references a team in Tournament.teams
   tournamentId       String
   tournament         Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerId           String? // Canonical cross-tournament identity (see Player). Nullable until backfilled.
+  player             Player?    @relation(fields: [playerId], references: [id], onDelete: SetNull)
+}
+
+// Canonical person, independent of any single tournament registration.
+// A Participant row stays the per-tournament "registration" (name/email/phone
+// as entered for that event); Player is what ties the same human across
+// multiple tournaments, replacing the old firstname+name string matching
+// used by the stats page.
+model Player {
+  id           String        @id @default(uuid())
+  firstname    String
+  name         String
+  pseudo       String?
+  email        String?
+  phone        String?
+  createdAt    DateTime      @default(now())
+  participants Participant[]
 }
 
 model Match {
