@@ -93,7 +93,11 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
       : "CdF Finale 2026";
 
     const finale = await prisma.tournament.findFirst({
-      where: { name: finaleName, status: "brouillon" },
+      where: {
+        name: finaleName,
+        status: "brouillon",
+        league: req.headers["x-league"] === "ligue" ? "ligue" : null,
+      },
       include: { participants: true },
     });
 
@@ -143,7 +147,11 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
 // GET /api/tournaments - list tournaments (filtered by role)
 router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const where = req.user!.role === "admin" ? {} : { ownerId: req.user!.id };
+    const league = req.headers["x-league"] === "ligue" ? "ligue" : null;
+    const where = {
+      ...(req.user!.role === "admin" ? {} : { ownerId: req.user!.id }),
+      league,
+    };
 
     const tournaments = await prisma.tournament.findMany({
       where,
@@ -234,6 +242,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
         currentRound: currentRound || 0,
         roundBoards: roundBoards ? JSON.stringify(roundBoards) : null,
         teams: teams ? JSON.stringify(teams) : null,
+        league: req.headers["x-league"] === "ligue" ? "ligue" : null,
         ownerId: effectiveOwnerId,
       },
     });

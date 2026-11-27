@@ -80,7 +80,9 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
     const q = req.query as Record<string, string | undefined>;
     const { tournament, corporation, qualified, from, to, organizer, player, board, meta } = q;
 
+    const league = req.headers["x-league"] === "ligue" ? "ligue" : null;
     const tournaments = await prisma.tournament.findMany({
+      where: { league },
       include: { participants: true, owner: { select: { id: true, name: true } } },
     });
 
@@ -116,7 +118,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
     }
 
     // Push what we can into SQL via the tournament relation.
-    const tournamentWhere: Record<string, any> = {};
+    const tournamentWhere: Record<string, any> = { league };
     if (tournament) tournamentWhere.id = tournament;
     if (organizer) tournamentWhere.ownerId = organizer;
     if (from || to) {
