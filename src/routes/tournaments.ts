@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { playerKeyOf, resolvePlayerIds } from "../lib/players";
 import { Prisma } from "@prisma/client";
 
 const router = Router();
@@ -116,6 +117,7 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
     });
 
     if (toCreate.length > 0) {
+      const playerIds = await resolvePlayerIds(toCreate);
       await prisma.participant.createMany({
         data: toCreate.map((p: any) => ({
           id: p.id,
@@ -127,6 +129,7 @@ router.post("/finale/add-players", async (req: AuthRequest, res: Response): Prom
           score: 0,
           sourceTournamentId: p.sourceTournamentId || null,
           tournamentId: finale.id,
+          playerId: playerIds.get(playerKeyOf(p)) ?? null,
         })),
       });
 
@@ -251,6 +254,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Create participants if provided
     if (participants && participants.length > 0) {
+      const playerIds = await resolvePlayerIds(participants);
       await prisma.participant.createMany({
         data: participants.map((p: any) => ({
           id: p.id,
@@ -265,6 +269,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
           sourceTournamentId: p.sourceTournamentId || null,
           teamId: p.teamId || null,
           tournamentId: tournament.id,
+          playerId: playerIds.get(playerKeyOf(p)) ?? null,
         })),
       });
     }
@@ -380,6 +385,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
     if (participants && participants.length > 0) {
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.participant.deleteMany({ where: { tournamentId: id } });
+        const playerIds = await resolvePlayerIds(participants, tx);
         await tx.participant.createMany({
           data: participants.map((p: any) => ({
             id: p.id,
@@ -394,6 +400,7 @@ router.put("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
             sourceTournamentId: p.sourceTournamentId || null,
             teamId: p.teamId || null,
             tournamentId: id,
+            playerId: playerIds.get(playerKeyOf(p)) ?? null,
           })),
         });
       });
